@@ -1,3 +1,6 @@
+require 'active_support/concern'
+require 'jsonapi_responses/serializable'
+
 module JsonapiResponses
   # Respondable module
   module Respondable
@@ -6,7 +9,7 @@ module JsonapiResponses
 
     private
 
-    def respond_with(record, options = {})
+    def custom_response(record, options = {})
       action = options[:action] || action_name.to_sym
       context = options[:context] || {}
       serializer_class = "#{controller_name.singularize.camelize}Serializer".constantize
@@ -32,7 +35,7 @@ module JsonapiResponses
     end
 
     def respond_for_update(record, serializer_class, context)
-      if record.update
+      if record.errors.empty?
         render json: serialize_item(record, serializer_class, context), status: :ok
       else
         render json: { errors: record.errors.full_messages }, status: :unprocessable_entity

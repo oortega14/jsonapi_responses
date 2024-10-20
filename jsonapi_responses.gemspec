@@ -2,7 +2,7 @@
 
 require_relative 'lib/jsonapi_responses/version'
 
-Gem::Specification.new 'jsonapi_responses', '0.1.0' do |spec|
+Gem::Specification.new 'jsonapi_responses' do |spec|
   spec.name = 'jsonapi_responses'
   spec.version = JsonapiResponses::VERSION
   spec.authors = ['Oscar Ortega']
