@@ -1,8 +1,8 @@
-AllCops:
-  TargetRubyVersion: 3.0
+Style/FrozenStringLiteralComment:
+  Enabled: false
 
-Style/StringLiterals:
-  EnforcedStyle: double_quotes
+AllCops:
+  TargetRubyVersion: 3.3.5
 
 Style/StringLiteralsInInterpolation:
   EnforcedStyle: double_quotes
