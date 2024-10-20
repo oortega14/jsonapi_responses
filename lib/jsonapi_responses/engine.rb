@@ -1,5 +1,7 @@
 # lib/jsonapi_responses/engine.rb
 require 'active_support'
+require 'rails'
+
 module JsonapiResponses
   # Define Engine
   class Engine < ::Rails::Engine
