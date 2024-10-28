@@ -1,17 +1,19 @@
 require 'active_support/concern'
 require 'jsonapi_responses/serializable'
+require 'jsonapi_responses/user_context_provider'
 
 module JsonapiResponses
   # Respondable module
   module Respondable
     extend ActiveSupport::Concern
     include JsonapiResponses::Serializable
+    include JsonapiResponses::UserContextProvider
 
     private
 
-    def custom_response(record, options = {})
+    def render_with(record, options = {})
       action = options[:action] || action_name.to_sym
-      context = options[:context] || {}
+      context = (options[:context] || {}).merge(serialization_user)
       serializer_class = "#{controller_name.singularize.camelize}Serializer".constantize
       send("respond_for_#{action}", record, serializer_class, context)
     rescue NoMethodError
@@ -42,7 +44,7 @@ module JsonapiResponses
       end
     end
 
-    def respond_for_destroy(record)
+    def respond_for_destroy(record, _, _)
       if record.destroy
         render json: { message: 'register destroyed successfully' }, status: :ok
       else
