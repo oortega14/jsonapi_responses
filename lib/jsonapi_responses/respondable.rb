@@ -14,7 +14,7 @@ module JsonapiResponses
     def render_with(record, options = {})
       action = options[:action] || action_name.to_sym
       context = (options[:context] || {}).merge(serialization_user)
-      context = context.merge(view: params[:view]&.to_sym) unless context.key?(:view)
+      context = context.merge(view: params[:view]&.to_sym) if context.key?(:view)
       serializer_class = "#{controller_name.singularize.camelize}Serializer".constantize
       send("respond_for_#{action}", record, serializer_class, context)
     rescue NoMethodError

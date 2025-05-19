@@ -13,13 +13,11 @@ Gem::Specification.new 'jsonapi_responses' do |spec|
   spec.homepage = 'https://www.oortega.dev/gems'
   spec.license = 'MIT'
   spec.required_ruby_version = '>= 3.3.5'
-  # spec.metadata['allowed_push_host'] = 'https://github.com/oortega14/jsonapi_responses'
+  spec.metadata['allowed_push_host'] = 'https://rubygems.org'
   spec.metadata['homepage_uri'] = spec.homepage
   spec.metadata['source_code_uri'] = 'https://github.com/oortega14/jsonapi_responses'
   spec.metadata['documentation_uri'] = 'https://github.com/oortega14/jsonapi_responses#readme'
   spec.metadata['changelog_uri'] = 'https://github.com/oortega14/jsonapi_responses/blob/main/CHANGELOG.md'
-  spec.metadata['maintainer'] = 'Oscar Ortega'
-  spec.metadata['owner'] = 'Oscar Ortega'
   spec.metadata['rubygems_mfa_required'] = 'true'
 
   gemspec = File.basename(__FILE__)
