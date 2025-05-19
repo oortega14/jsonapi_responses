@@ -100,23 +100,36 @@ end
 
 ### Controller Implementation
 
-Use `render_with` in your controllers to handle responses:
+Use `render_with` in your controllers to handle responses. The view parameter is automatically handled from the request params:
 
 ```ruby
-class Api::V1::DigitalProductsController < ApplicationController
+class Api::V1::ProductsController < ApplicationController
   def index
-    digital_products = DigitalProduct.includes(:categories, :attachments)
-    render_with(digital_products, context: { view: view_param })
+    products = Product.includes(:categories, :attachments)
+    render_with(products)
+  end
+
+  def create
+    @product = Product.new(product_params)
+    render_with(@product)
   end
 
   def show
-    render_with(@digital_product, context: { view: view_param })
+    render_with(@product)
   end
 
-  private
+  def update
+    @product.update(product_params)
+    render_with(@product)
+  end
 
-  def view_param
-    params[:view]&.to_sym
+  def destroy
+    render_with(@product)
+  end
+
+  # Optional: Override the view if needed
+  def custom_action
+    render_with(@product, context: { view: :custom_view })
   end
 end
 ```
