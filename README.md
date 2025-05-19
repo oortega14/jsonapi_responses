@@ -1,28 +1,143 @@
 # JsonapiResponses
 
-TODO: Delete this and the text below, and describe your gem
-
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/jsonapi_responses`. To experiment with that code, run `bin/console` for an interactive prompt.
+JsonapiResponses is a Ruby gem that simplifies API response handling by allowing multiple response formats from a single endpoint. Instead of creating separate endpoints for different data requirements, this gem enables frontend applications to request varying levels of detail using the same endpoint.
 
 ## Installation
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
+Add this line to your application's Gemfile:
 
-Install the gem and add to the application's Gemfile by executing:
-
-```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+```ruby
+gem 'jsonapi_responses'
 ```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+And then execute:
 
 ```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+$ bundle install
+```
+
+Or install it yourself as:
+
+```bash
+$ gem install jsonapi_responses
 ```
 
 ## Usage
 
-TODO: Write usage instructions here
+### Setup
+
+1. Include the respondable module in your `ApplicationController`:
+
+```ruby
+class ApplicationController < ActionController::API
+  include JsonapiResponses::Respondable
+end
+```
+
+### Creating Serializers
+
+1. Create a base serializer:
+
+```ruby
+class BaseSerializer
+  attr_reader :resource, :context
+
+  def initialize(resource, context = {})
+    @resource = resource
+    @context = context
+  end
+
+  def current_user
+    @context[:current_user]
+  end
+end
+```
+
+2. Create your model serializers with different view formats:
+
+```ruby
+class DigitalProductSerializer < BaseSerializer
+  def serializable_hash
+    case context[:view]
+    when :summary
+      summary_hash
+    when :minimal
+      minimal_hash
+    else
+      full_hash
+    end
+  end
+
+  private
+
+  def full_hash
+    {
+      id: resource.id,
+      name: resource.name,
+      description: resource.description,
+      # ... more attributes
+    }
+  end
+
+  def summary_hash
+    {
+      id: resource.id,
+      name: resource.name,
+      price: resource.price,
+      # ... fewer attributes
+    }
+  end
+
+  def minimal_hash
+    {
+      id: resource.id,
+      name: resource.name,
+      # ... minimal attributes
+    }
+  end
+end
+```
+
+### Controller Implementation
+
+Use `render_with` in your controllers to handle responses:
+
+```ruby
+class Api::V1::DigitalProductsController < ApplicationController
+  def index
+    digital_products = DigitalProduct.includes(:categories, :attachments)
+    render_with(digital_products, context: { view: view_param })
+  end
+
+  def show
+    render_with(@digital_product, context: { view: view_param })
+  end
+
+  private
+
+  def view_param
+    params[:view]&.to_sym
+  end
+end
+```
+
+### Making Requests
+
+You can request different view formats by adding the `view` parameter:
+
+```
+GET /api/v1/digital_products            # Returns full response
+GET /api/v1/digital_products?view=summary  # Returns summary response
+GET /api/v1/digital_products?view=minimal  # Returns minimal response
+```
+
+### Performance Benefits
+
+By allowing the frontend to request only the needed data, you can:
+- Reduce response payload size
+- Improve API performance
+- Avoid creating multiple endpoints for different data requirements
+- Optimize database queries based on the requested view
 
 ## Development
 
