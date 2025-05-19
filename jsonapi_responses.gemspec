@@ -8,15 +8,19 @@ Gem::Specification.new 'jsonapi_responses' do |spec|
   spec.authors = ['Oscar Ortega']
   spec.email = ['ortegaoscar14@gmail.com']
 
-  spec.summary = 'A simple way to respond with JSON in an API'
-  spec.description = 'My first gem which tries to get simplier the way you responde in your API'
+  spec.summary = 'A simple way to handle multiple JSON response formats in Rails APIs'
+  spec.description = 'JsonapiResponses simplifies API response handling by allowing multiple response formats from a single endpoint, improving performance and reducing endpoint duplication'
   spec.homepage = 'https://www.oortega.dev/gems'
   spec.license = 'MIT'
   spec.required_ruby_version = '>= 3.3.5'
   # spec.metadata['allowed_push_host'] = 'https://github.com/oortega14/jsonapi_responses'
   spec.metadata['homepage_uri'] = spec.homepage
   spec.metadata['source_code_uri'] = 'https://github.com/oortega14/jsonapi_responses'
+  spec.metadata['documentation_uri'] = 'https://github.com/oortega14/jsonapi_responses#readme'
   spec.metadata['changelog_uri'] = 'https://github.com/oortega14/jsonapi_responses/blob/main/CHANGELOG.md'
+  spec.metadata['maintainer'] = 'Oscar Ortega'
+  spec.metadata['owner'] = 'Oscar Ortega'
+  spec.metadata['rubygems_mfa_required'] = 'true'
 
   gemspec = File.basename(__FILE__)
   spec.files = IO.popen(%w[git ls-files -z], chdir: __dir__, err: IO::NULL) do |ls|
