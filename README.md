@@ -158,6 +158,72 @@ After checking out the repo, run `bin/setup` to install dependencies. Then, run 
 
 To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
 
+## Custom Actions Support
+
+Beyond the standard CRUD actions (index, show, create, update, destroy), you can now support custom actions like `public_index`, `export_csv`, `dashboard_stats`, etc.
+
+### Basic Usage
+
+**Option 1: Map to existing actions**
+```ruby
+class Api::V1::CoursesController < ApplicationController
+  include JsonapiResponses::Respondable
+  
+  # Map custom actions to existing response methods
+  map_response_action :public_index, to: :index
+  map_response_action :public_show, to: :show
+  
+  def public_index
+    # Your logic here
+    render_with(@courses)  # Will use respond_for_index
+  end
+end
+```
+
+**Option 2: Define custom response methods**
+```ruby
+class Api::V1::CoursesController < ApplicationController
+  include JsonapiResponses::Respondable
+  
+  def dashboard_stats
+    # Your logic here
+    render_with(@stats)
+  end
+  
+  private
+  
+  def respond_for_dashboard_stats(record, serializer_class, context)
+    render json: {
+      data: record,
+      meta: { type: 'dashboard', generated_at: Time.current }
+    }
+  end
+end
+```
+
+**Option 3: Metaprogramming (Recommended for complex scenarios)**
+```ruby
+class Api::V1::CoursesController < ApplicationController
+  include JsonapiResponses::Respondable
+  
+  # Generate methods automatically
+  generate_rest_responses(
+    namespace: 'public',
+    actions: [:index, :show],
+    context: { access_level: 'public' }
+  )
+  
+  # Define similar responses in batch
+  define_responses_for [:export_csv, :export_pdf] do |record, serializer_class, context|
+    format = action_name.to_s.split('_').last
+    render json: {
+      data: serialize_collection(record, serializer_class, context),
+      meta: { export_format: format, total: record.count }
+    }
+  end
+end
+```
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/jsonapi_responses. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/jsonapi_responses/blob/main/CODE_OF_CONDUCT.md).
