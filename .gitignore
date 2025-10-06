@@ -12,3 +12,4 @@
 
 # Ignore gem versions
 builds/
+*.gem
