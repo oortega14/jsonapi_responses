@@ -1,6 +1,7 @@
 require 'active_support/concern'
 require 'jsonapi_responses/serializable'
 require 'jsonapi_responses/user_context_provider'
+require 'jsonapi_responses/responder'
 
 module JsonapiResponses
   # Respondable module
@@ -165,7 +166,21 @@ module JsonapiResponses
       action = options[:action] || action_name.to_sym
       context = (options[:context] || {}).merge(serialization_user)
       context = context.merge(view: params[:view]&.to_sym) if context.key?(:view)
-      serializer_class = "#{controller_name.singularize.camelize}Serializer".constantize
+      serializer_class = options[:serializer] || "#{controller_name.singularize.camelize}Serializer".constantize
+      
+      # If a custom responder is provided, use it
+      if options[:responder]
+        responder_class = options[:responder]
+        responder = responder_class.new(self, record, serializer_class, context)
+        
+        # If an action method is specified, call it on the responder
+        if options[:action] && responder.respond_to?(options[:action])
+          return responder.public_send(options[:action])
+        end
+        
+        # Otherwise call the default render method
+        return responder.render
+      end
       
       # Find the appropriate response method
       response_method = find_response_method_for_action(action)
