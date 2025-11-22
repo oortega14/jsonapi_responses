@@ -165,7 +165,8 @@ module JsonapiResponses
     def render_with(record, options = {})
       action = options[:action] || action_name.to_sym
       context = (options[:context] || {}).merge(serialization_user)
-      context = context.merge(view: params[:view]&.to_sym) if context.key?(:view)
+      # Only use params[:view] if view is not already provided in context
+      context[:view] ||= params[:view]&.to_sym
       serializer_class = options[:serializer] || "#{controller_name.singularize.camelize}Serializer".constantize
       
       # If a custom responder is provided, use it
