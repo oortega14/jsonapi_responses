@@ -212,7 +212,17 @@ module JsonapiResponses
     end
 
     def respond_for_index(record, serializer_class, context)
-      render json: serialize_collection(record, serializer_class, context)
+      response = { data: serialize_collection(record, serializer_class, context) }
+      
+      # Auto-detect pagination and add meta if available
+      if paginated?(record)
+        response[:meta] = pagination_meta(record, context)
+      elsif context[:meta]
+        # Allow manual meta from context
+        response[:meta] = context[:meta]
+      end
+      
+      render json: response
     end
 
     def respond_for_show(record, serializer_class, context)
@@ -258,6 +268,26 @@ module JsonapiResponses
           "Use 'map_response_action :#{action_name}, to: :existing_action' to map it to an existing response method"
         ]
       }, status: :bad_request
+    end
+
+    # Check if record is paginated (Kaminari or WillPaginate support)
+    def paginated?(record)
+      record.respond_to?(:current_page) && 
+      record.respond_to?(:total_pages) &&
+      record.respond_to?(:total_count)
+    end
+
+    # Extract pagination metadata from paginated record
+    def pagination_meta(record, context = {})
+      base_meta = {
+        current_page: record.current_page,
+        total_pages: record.total_pages,
+        total_count: record.total_count,
+        per_page: record.try(:limit_value) || record.try(:per_page) || context[:per_page]
+      }.compact
+      
+      # Merge with any additional meta from context
+      context[:meta] ? base_meta.merge(context[:meta]) : base_meta
     end
   end
 end

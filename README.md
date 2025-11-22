@@ -153,6 +153,154 @@ By allowing the frontend to request only the needed data, you can:
 - Avoid creating multiple endpoints for different data requirements
 - Optimize database queries based on the requested view
 
+## Automatic Pagination Support
+
+**New in v1.1.0:** JsonapiResponses now automatically detects and handles paginated collections using Kaminari, making pagination effortless.
+
+### Basic Usage
+
+When you paginate your records with Kaminari, pagination metadata is automatically included in the response:
+
+```ruby
+class Api::V1::AcademiesController < ApplicationController
+  include JsonapiResponses::Respondable
+
+  def index
+    academies = Academy.page(params[:page]).per(15)
+    
+    # That's it! Pagination is automatic
+    render_with(academies)
+  end
+end
+```
+
+**Response:**
+
+```json
+{
+  "data": [
+    { "id": 1, "name": "Academy 1", ... },
+    { "id": 2, "name": "Academy 2", ... }
+  ],
+  "meta": {
+    "current_page": 1,
+    "total_pages": 5,
+    "total_count": 73,
+    "per_page": 15
+  }
+}
+```
+
+### How It Works
+
+JsonapiResponses automatically detects if your collection responds to Kaminari's pagination methods:
+- `current_page`
+- `total_pages`
+- `total_count`
+
+If these methods exist, pagination metadata is automatically included in the response.
+
+### With Custom Views
+
+Pagination works seamlessly with different view formats:
+
+```ruby
+def index
+  academies = Academy
+    .includes(:owner, :courses)
+    .page(params[:page])
+    .per(params[:per_page] || 15)
+  
+  # Supports view parameter and automatic pagination
+  render_with(academies)
+end
+```
+
+**Request:**
+```
+GET /api/v1/academies?page=2&per_page=20&view=summary
+```
+
+**Response:**
+```json
+{
+  "data": [
+    { "id": 21, "name": "Academy 21", ... }
+  ],
+  "meta": {
+    "current_page": 2,
+    "total_pages": 4,
+    "total_count": 73,
+    "per_page": 20
+  }
+}
+```
+
+### Requirements
+
+- **Kaminari gem** must be installed and configured
+- Your collection must be paginated with `.page()` method
+
+### Custom Pagination Metadata
+
+You can add additional metadata alongside automatic pagination:
+
+```ruby
+def index
+  academies = Academy.page(params[:page]).per(15)
+  
+  render_with(
+    academies,
+    context: { view: view },
+    meta: { 
+      fetched_at: Time.current,
+      filters_applied: params[:search].present?
+    }
+  )
+end
+```
+
+**Response:**
+```json
+{
+  "data": [...],
+  "meta": {
+    "current_page": 1,
+    "total_pages": 5,
+    "total_count": 73,
+    "per_page": 15,
+    "fetched_at": "2024-01-15T10:30:00Z",
+    "filters_applied": true
+  }
+}
+```
+
+### Using Pagination Helpers
+
+For custom responders, use the built-in pagination helpers:
+
+```ruby
+class AcademyResponder < JsonapiResponses::Responder
+  def respond_for_index
+    if paginated?(record)
+      render json: {
+        data: serialize_collection(record, serializer_class, context),
+        meta: pagination_meta(record, context)
+      }
+    else
+      render json: {
+        data: serialize_collection(record, serializer_class, context)
+      }
+    end
+  end
+end
+```
+
+Available helpers:
+- `paginated?(record)` - Check if record supports pagination
+- `pagination_meta(record, context)` - Extract pagination metadata hash
+- `render_collection_with_meta(record, serializer_class, context)` - Render with automatic pagination
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.

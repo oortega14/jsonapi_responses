@@ -101,5 +101,49 @@ module JsonapiResponses
     def single_item?
       !collection?
     end
+
+    # Check if record is paginated (Kaminari or WillPaginate support)
+    # @return [Boolean]
+    def paginated?
+      record.respond_to?(:current_page) && 
+      record.respond_to?(:total_pages) &&
+      record.respond_to?(:total_count)
+    end
+
+    # Extract pagination metadata from paginated record
+    # @return [Hash, nil] Pagination metadata or nil if not paginated
+    def pagination_meta
+      return nil unless paginated?
+      
+      {
+        current_page: record.current_page,
+        total_pages: record.total_pages,
+        total_count: record.total_count,
+        per_page: record.try(:limit_value) || record.try(:per_page)
+      }.compact
+    end
+
+    # Render collection with automatic pagination support
+    # @param records [Array, ActiveRecord::Relation] Records to render
+    # @param additional_meta [Hash] Additional metadata to include
+    def render_collection_with_meta(records = nil, additional_meta = {})
+      records ||= record
+      response = { data: serialize_collection(records) }
+      
+      # Auto-detect pagination
+      if records.respond_to?(:current_page)
+        meta = {
+          current_page: records.current_page,
+          total_pages: records.total_pages,
+          total_count: records.total_count,
+          per_page: records.try(:limit_value) || records.try(:per_page)
+        }.compact
+        response[:meta] = meta.merge(additional_meta)
+      elsif additional_meta.any?
+        response[:meta] = additional_meta
+      end
+      
+      render_json(response)
+    end
   end
 end

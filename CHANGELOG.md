@@ -1,5 +1,44 @@
 ## [Unreleased]
 
+## [1.1.0] - 2025-11-21
+
+### Added
+
+- **Automatic Pagination Support**: `respond_for_index` now auto-detects Kaminari/WillPaginate pagination and includes meta automatically
+- **Pagination Helpers in Responder**: Added `paginated?`, `pagination_meta`, and `render_collection_with_meta` methods
+- **Smart Meta Handling**: Automatically merges pagination meta with context meta if both are present
+
+### Features
+
+- Auto-detection of paginated collections (checks for `current_page`, `total_pages`, `total_count` methods)
+- Automatic inclusion of pagination metadata: `current_page`, `total_pages`, `total_count`, `per_page`
+- Backward compatible - works with manual `meta` in context or auto-detects pagination
+- Works with both Kaminari and WillPaginate gems
+
+### Example Usage
+
+```ruby
+# Controller - Automatic pagination meta
+def index
+  @academies = Academy.page(params[:page]).per(15)
+  render_with(@academies) # Auto-includes pagination meta!
+end
+
+# Manual meta still works
+def index
+  @academies = Academy.page(params[:page]).per(15)
+  render_with(@academies, context: { meta: { custom: 'data' } })
+  # Merges pagination + custom meta
+end
+
+# Custom responder with pagination helper
+class MyResponder < JsonapiResponses::Responder
+  def render
+    render_collection_with_meta(record, { custom: 'meta' })
+  end
+end
+```
+
 ## [1.0.0] - 2025-10-07
 
 ### 🎉 Major Release - Breaking Changes
