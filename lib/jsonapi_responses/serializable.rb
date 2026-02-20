@@ -10,7 +10,7 @@ module JsonapiResponses
     end
 
     def serialize_item(item, serializer_class, context = {})
-      serializer_class.new(item, context).serializable_hash
+      serializer_class.new(item, context || {}).serializable_hash
     end
   end
 end

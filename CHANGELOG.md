@@ -1,6 +1,45 @@
 ## [Unreleased]
 
-## [1.1.0] - 2025-11-21
+## [1.2.0] - 2026-02-20
+
+- **`serialize_for(action)` in Responder**: Serializes the record using a named method on the serializer if it exists, falling back to `serializable_hash` otherwise. Mirrors the Pundit convention — define `def confirm` in your serializer to get a custom shape for that action without duplicating logic in the responder.
+- **Graceful serializer resolution**: `render_with` no longer raises `NameError` if the inferred serializer class does not exist. When no `serializer:` option is passed and the conventional name (e.g. `ConfirmationSerializer`) cannot be found, `serializer_class` resolves to `nil` and the responder can use `serialize_for` or `render_json` directly.
+
+### Changed
+
+- **Serializer responsibility boundary clarified**: The serializer owns the *shape* of the object (including per-action shapes via named methods); the responder owns the *envelope* of the response (`data:`, `message:`, `meta:`, etc.).
+
+### Example
+
+```ruby
+# app/serializers/user_serializer.rb
+class UserSerializer < ApplicationSerializer
+  def serializable_hash
+    case view
+    when :minimal then minimal_hash
+    else summary_hash
+    end
+  end
+
+  # Action-scoped shape — called by serialize_for(:confirm)
+  def confirm = auth_hash
+
+  private
+
+  def auth_hash
+    { id: resource.id, email: resource.email, confirmed: resource.confirmed? }
+  end
+end
+
+# app/responders/confirmation_responder.rb
+class ConfirmationResponder < ApplicationResponder
+  def confirm
+    render_json({ message: context[:message], user: serialize_for(:confirm) })
+  end
+end
+```
+
+ - 2025-11-21
 
 ### Added
 

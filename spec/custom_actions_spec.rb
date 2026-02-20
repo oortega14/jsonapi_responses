@@ -62,7 +62,7 @@ RSpec.describe JsonapiResponses::Respondable do
       result = controller.send(:render_with, records)
       
       expect(result[:json][:error]).to eq("Action not supported")
-      expect(result[:json][:details][:action]).to eq("public_index")
+      expect(result[:json][:details][:action]).to eq(:public_index)
       expect(result[:json][:details][:required_method]).to eq("respond_for_public_index")
       expect(result[:status]).to eq(:bad_request)
     end
@@ -74,8 +74,8 @@ RSpec.describe JsonapiResponses::Respondable do
       result = controller.send(:render_with, record)
       
       expect(result[:json][:message]).to include("custom_action' is not supported")
-      expect(result[:json][:suggestions]).to include("Define a 'respond_for_custom_action' method")
-      expect(result[:json][:suggestions]).to include("Use 'map_response_action :custom_action")
+      expect(result[:json][:suggestions]).to include("Define a 'respond_for_custom_action' method in your controller")
+      expect(result[:json][:suggestions]).to include(a_string_starting_with("Use 'map_response_action :custom_action"))
     end
   end
 
@@ -93,25 +93,31 @@ RSpec.describe JsonapiResponses::Respondable do
     end
     
     it 'uses manual mapping for single actions' do
-      controller = controller_class_with_mapping.new('featured')
+      controller_class = Class.new(controller_class_with_mapping) do
+        def respond_for_index(record, serializer_class, context)
+          render json: { mapped_to: :index, data: serialize_collection(record, serializer_class, context) }
+        end
+      end
+      controller = controller_class.new('featured')
       records = [{ id: 1 }]
-      
-      expect(controller).to receive(:respond_to?).with('respond_for_featured', true).and_return(false)
-      expect(controller).to receive(:respond_to?).with('respond_for_index', true).and_return(true)
-      expect(controller).to receive(:respond_for_index).with(records, CourseSerializer, {})
-      
-      controller.send(:render_with, records)
+
+      result = controller.send(:render_with, records)
+
+      expect(result[:json][:mapped_to]).to eq(:index)
     end
     
     it 'uses manual mapping for batch-configured actions' do
-      controller = controller_class_with_mapping.new('dashboard')
+      controller_class = Class.new(controller_class_with_mapping) do
+        def respond_for_show(record, serializer_class, context)
+          render json: { mapped_to: :show, data: serialize_item(record, serializer_class, context) }
+        end
+      end
+      controller = controller_class.new('dashboard')
       record = { id: 1 }
-      
-      expect(controller).to receive(:respond_to?).with('respond_for_dashboard', true).and_return(false)
-      expect(controller).to receive(:respond_to?).with('respond_for_show', true).and_return(true)
-      expect(controller).to receive(:respond_for_show).with(record, CourseSerializer, {})
-      
-      controller.send(:render_with, record)
+
+      result = controller.send(:render_with, record)
+
+      expect(result[:json][:mapped_to]).to eq(:show)
     end
   end
 
@@ -144,7 +150,7 @@ RSpec.describe JsonapiResponses::Respondable do
       
       expect(result[:json][:error]).to eq("Action not supported")
       expect(result[:json][:message]).to include("unsupported_action' is not supported")
-      expect(result[:json][:details][:action]).to eq("unsupported_action")
+      expect(result[:json][:details][:action]).to eq(:unsupported_action)
       expect(result[:json][:details][:controller]).to eq("courses")
       expect(result[:json][:details][:required_method]).to eq("respond_for_unsupported_action")
       expect(result[:json][:suggestions]).to be_an(Array)

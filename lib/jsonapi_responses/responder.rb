@@ -69,6 +69,29 @@ module JsonapiResponses
       controller.send(:serialize_item, item, serializer, ctx)
     end
 
+    # Serialize the record using a named method on the serializer if it exists,
+    # otherwise falls back to serializable_hash.
+    # Mirrors the Pundit convention: action name on the serializer = custom shape.
+    #
+    # @example In a serializer
+    #   def confirm = auth_hash   # custom shape for the confirm action
+    #
+    # @example In a responder
+    #   def confirm
+    #     render_json({ message: context[:message], user: serialize_for(:confirm) })
+    #   end
+    #
+    # @param action [Symbol] The action name to look up on the serializer
+    # @param item [Object, nil] Record to serialize (defaults to record)
+    # @param custom_serializer [Class, nil] Override serializer class
+    # @param custom_context [Hash, nil] Override context
+    # @return [Hash] Serialized representation
+    def serialize_for(action, item = nil, custom_serializer = nil, custom_context = nil)
+      item ||= record
+      serializer = (custom_serializer || serializer_class).new(item, custom_context || context)
+      serializer.respond_to?(action) ? serializer.public_send(action) : serializer.serializable_hash
+    end
+
     # Access to params from the controller
     # @return [ActionController::Parameters]
     def params
@@ -91,8 +114,8 @@ module JsonapiResponses
     # Helper to check if record is a collection
     # @return [Boolean]
     def collection?
-      record.is_a?(Array) || 
-      record.is_a?(ActiveRecord::Relation) ||
+      record.is_a?(Array) ||
+      (defined?(ActiveRecord::Relation) && record.is_a?(ActiveRecord::Relation)) ||
       (record.respond_to?(:to_a) && !record.is_a?(Hash))
     end
 

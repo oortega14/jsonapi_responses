@@ -1,15 +1,14 @@
 source 'https://rubygems.org'
 
-ruby '3.3.5'
+ruby '4.0.1'
 
 # Specify your gem's dependencies in jsonapi_responses.gemspec
 gemspec
 
 # Add rails
-gem 'rails', '~> 7.2.1'
+gem 'rails', '~> 8.1.2'
 
 gem 'rake', '~> 13.0'
-
 gem 'rspec', '~> 3.0'
 
 gem 'rubocop', '~> 1.21'

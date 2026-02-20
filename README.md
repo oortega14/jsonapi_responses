@@ -301,6 +301,42 @@ Available helpers:
 - `pagination_meta(record, context)` - Extract pagination metadata hash
 - `render_collection_with_meta(record, serializer_class, context)` - Render with automatic pagination
 
+## Security & Authorization
+
+The `view` parameter is a client-side suggestion and should never be trusted blindly. In a production environment, you must validate whether the `current_user` has permission to see the requested level of detail.
+
+### Secure by Default Pattern
+
+Use your authorization logic (like Pundit) inside the serializer to enforce security:
+
+```ruby
+class DigitalProductSerializer < ApplicationSerializer
+  def serializable_hash
+    # Validate the view against permissions
+    authorized_view = authorize_view(context[:view] || :summary)
+
+    case authorized_view
+    when :full then full_hash
+    when :summary then summary_hash
+    else minimal_hash
+    end
+  end
+
+  private
+
+  def authorize_view(requested_view)
+    return requested_view unless requested_view == :full
+    
+    # Check permission for the 'full' view
+    if Pundit.policy!(context[:current_user], resource).show_full?
+      :full
+    else
+      :summary # Fallback to a safe view
+    end
+  end
+end
+```
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
@@ -378,14 +414,48 @@ end
 
 ## Custom Responders - Pundit-Style Pattern (Recommended)
 
-For complex custom actions with specialized response logic, use **one Responder class per controller** (similar to Pundit's policy pattern). This keeps your codebase organized and maintainable.
+For complex actions or non-standard logic (like `bulk_upload`, `export_csv`, or `dashboard_stats`), Responders provide a clean way to encapsulate response logic outside of your controllers.
 
-### Why Use Responders?
+### Handling Non-Standard Actions
 
-- **Separation of Concerns**: Keep response logic out of controllers
-- **One Class Per Controller**: Similar to Pundit policies - easy to find and maintain
-- **Testability**: Test response logic independently
-- **Scalability**: Add new actions without creating new files
+If you have an action that doesn't fit the standard CRUD pattern, you can use the `action:` parameter to route the response to a specific method in your responder.
+
+**1. Define the action in your Responder:**
+
+```ruby
+# app/responders/product_responder.rb
+class ProductResponder < ApplicationResponder
+  # Custom action for bulk uploads
+  def bulk_upload
+    render_json({
+      data: serialize_collection(record),
+      meta: {
+        processed_at: Time.current,
+        total_records: record.count,
+        status: 'completed'
+      }
+    })
+  end
+end
+```
+
+**2. Call it from your Controller:**
+
+```ruby
+class Api::V1::ProductsController < ApplicationController
+  def bulk_upload
+    @products = Product.where(id: params[:ids])
+    # The 'action' parameter tells the responder which method to execute
+    render_with(@products, responder: ProductResponder, action: :bulk_upload)
+  end
+end
+```
+
+### Why Use Responders for "Rare" Actions?
+
+- **Clean Controllers**: Your controller only handles business logic and fetching data.
+- **Specific Metadata**: Non-standard actions often require unique `meta` tags that would clutter a controller.
+- **Organization**: Even if you have "weird" actions, they remain organized within the Responder assigned to that controller.
 
 ### The Pundit-Style Approach
 
@@ -546,6 +616,9 @@ class MyCustomResponder < JsonapiResponses::Responder
     serialize_collection(record)  # For collections
     serialize_item(record)         # For single items
 
+    # Serialize using a named method on the serializer (falls back to serializable_hash)
+    serialize_for(:my_action)      # Calls serializer.my_action if defined
+
     # Check record type
     collection?    # true if record is a collection
     single_item?   # true if record is a single item
@@ -555,6 +628,84 @@ class MyCustomResponder < JsonapiResponses::Responder
   end
 end
 ```
+
+## Action-Scoped Serialization with `serialize_for`
+
+For actions with a custom response envelope (like an email confirmation that returns `{ message:, user: }` instead of the standard `{ data: }`), you can define a named method on the serializer to describe the exact shape of the object for that action.
+
+This mirrors the Pundit convention: just as `PostPolicy#publish?` handles the `publish` action, `UserSerializer#confirm` handles the `confirm` action.
+
+**Rule:** the serializer owns the *shape* of the object; the responder owns the *envelope*.
+
+### How it works
+
+`serialize_for(:action)` instantiates the serializer and calls `.action` on it if defined, otherwise falls back to `serializable_hash`.
+
+### Example
+
+**1. Define the action shape in the serializer** (alongside your existing views):
+
+```ruby
+# app/serializers/user_serializer.rb
+class UserSerializer < ApplicationSerializer
+  def serializable_hash
+    case view
+    when :minimal then minimal_hash
+    when :profile then profile_hash
+    else summary_hash
+    end
+  end
+
+  # Custom shape for the confirm action — reuses an existing private method
+  def confirm = auth_hash
+
+  private
+
+  def summary_hash = { id: resource.id, email: resource.email }
+  def auth_hash    = { id: resource.id, email: resource.email, confirmed: resource.confirmed? }
+end
+```
+
+**2. Use `serialize_for` in the responder** — no shape logic leaks in:
+
+```ruby
+# app/responders/confirmation_responder.rb
+class ConfirmationResponder < ApplicationResponder
+  def confirm
+    render_json({
+      message: context[:message],
+      user: serialize_for(:confirm)   # → UserSerializer#confirm
+    })
+  end
+end
+```
+
+**3. Controller stays minimal:**
+
+```ruby
+class Api::V1::ConfirmationsController < ApplicationController
+  def confirm
+    # ... validation logic ...
+    render_with(
+      user,
+      responder: ConfirmationResponder,
+      action: :confirm,
+      serializer: UserSerializer,
+      context: { message: I18n.t("auth.confirmation.success") }
+    )
+  end
+end
+```
+
+### Fallback behaviour
+
+If the serializer does not define the named method, `serialize_for` silently falls back to `serializable_hash`, so existing serializers require no changes.
+
+```ruby
+serialize_for(:confirm)  # → UserSerializer#confirm   (if defined)
+serialize_for(:confirm)  # → UserSerializer#serializable_hash  (fallback)
+```
+
 
 ### Complex Example: Categorized Response
 
